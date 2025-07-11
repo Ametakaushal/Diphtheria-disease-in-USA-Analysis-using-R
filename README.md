@@ -8,11 +8,15 @@ This repository contains an R-based analysis of Diphtheria incidence in the Unit
 ## 📂 Project Structure
 
 
-├── Diphtheria_Analysis.Rmd # R Markdown source code
-├── Diphtheria_Analysis.html # Rendered report
-├── /figures # Folder for plots and figures
-├── /data # Raw and processed data files
-└── README.md
+Diphtheria_Analysis.Rmd # R Markdown source code
+
+ Diphtheria_Analysis.html # Rendered report
+ 
+figures # Folder for plots and figures
+
+data # Raw and processed data files
+
+README.md
 
 
 ---
@@ -20,7 +24,7 @@ This repository contains an R-based analysis of Diphtheria incidence in the Unit
 ## 📊 Data Description
 
 - **Source:** [Project Tycho](https://www.tycho.pitt.edu/)
-- **Time Period:** 1888–2013
+- **Time Period:** 1888–1981
 - **Variables:**
   - Week ending date
   - State
@@ -55,38 +59,15 @@ The analysis includes the following key steps:
 
 ### Annual Diphtheria Cases
 
-![Annual Diphtheria Cases](figures/diphtheria_annual_trend.png)
-
-**Figure 1.** Annual reported Diphtheria cases in the United States, showing a dramatic decline after vaccine introduction.
+Annual reported Diphtheria cases in the United States, showing a dramatic decline after vaccine introduction.
 
 ---
 
 ### Seasonality
 
-![Diphtheria Seasonality Heatmap](figures/diphtheria_seasonality_heatmap.png)
-
-**Figure 2.** Heatmap of Diphtheria cases by month across years, demonstrating clear seasonal peaks.
+BOx Plot of Diphtheria cases by month across years, demonstrating clear seasonal peaks.
 
 ---
-
-### Geographic Distribution
-
-| State         | Total Cases (1888–2013) |
-|---------------|--------------------------|
-| New York      | [Fill In]                |
-| Pennsylvania  | [Fill In]                |
-| Illinois      | [Fill In]                |
-| ...           | ...                      |
-
-**Table 1.** Total reported cases by state.
-
----
-
-## 📈 How to Reproduce
-
-To re-run this analysis:
-
-1. Clone this repository:
 
 
 
@@ -98,14 +79,15 @@ Seasonality: The disease showed higher incidence during colder months.
 State Variation: Some states reported consistently higher case counts due to population density and reporting practices.
 
 
-# 🖼️ Figures & Tables
 
-🙏 Acknowledgments
+
+#🙏 Acknowledgments
+
 Project Tycho for providing open-access data
 
 RStudio and the R community for tools and packages
 
-[Your Institution or Course Name]
+
 
 
 
