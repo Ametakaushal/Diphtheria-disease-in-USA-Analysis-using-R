@@ -1,5 +1,5 @@
 
-# Diphtheria Incidence Analysis (1888–2013)
+# Diphtheria Incidence Analysis in USA (1888–1981)
 
 This repository contains an R-based analysis of Diphtheria incidence in the United States, using the Project Tycho dataset. The project explores long-term trends, seasonal patterns, and the historical impact of public health interventions, including widespread vaccination.
 
@@ -12,7 +12,6 @@ Diphtheria_Analysis.Rmd # R Markdown source code
 
  Diphtheria_Analysis.html # Rendered report
  
-figures # Folder for plots and figures
 
 data # Raw and processed data files
 
