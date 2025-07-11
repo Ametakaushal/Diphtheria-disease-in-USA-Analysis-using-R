@@ -1,7 +1,10 @@
 Exploratory Analysis of Diphtheria in the US (1888–1981)
+
+
 This project explores historical mortality trends of diphtheria in the United States from 1888 to 1981 using the Project Tycho dataset. The analysis combines data cleaning, visualization, changepoint detection, interrupted time series regression, and ARIMA forecasting to understand the impact of vaccination campaigns.
 
 Features
+
 Data Preparation
 
 Loading and cleaning diphtheria mortality data.
@@ -94,10 +97,6 @@ readr
 
 zoo
 
-License
-This project is licensed under the MIT License.
-
-If you like, I can tailor it further or help you add badges or usage examples.
 
 
 
@@ -106,23 +105,7 @@ If you like, I can tailor it further or help you add badges or usage examples.
 
 
 
-You said:
-can i copy paste it directly?
 
 
-ChatGPT said:
-✅ Yes—absolutely!
 
-You can copy-paste the entire text I shared directly into a README.md file in your GitHub repository—no changes needed unless you want to:
 
-Update the Git clone URL to your actual repository link (https://github.com/your-username/diphtheria-analysis.git)
-
-Add or remove sections (e.g., License, Dependencies)
-
-Quick steps to do this:
-
-Create a new file called README.md in your repo root folder.
-
-Paste the text I gave you.
-
-Save and commit.
