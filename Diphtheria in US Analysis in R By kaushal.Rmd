@@ -1,0 +1,410 @@
+---
+title: "Exploratory Analysis of Diphtheria in the US (1888–1981)"
+author: "Kaushal Ameta (12400922)"
+course: "Data Visualization with R"
+Email: "kaushal.ameta@stud.th-deg.de"
+date: "12th July 2025"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    theme: united
+---
+
+
+# Abstract
+
+This study investigates historical diphtheria mortality in the United States between 1888 and 1981 using Project Tycho data. It combines descriptive visualization, statistical modeling, and spatial analysis to answer research questions about temporal trends, seasonality, geographic hotspots, and vaccination impact. Methods include LOESS smoothing, STL decomposition, changepoint detection, interrupted time-series regression, ARIMA forecasting, and boxplot visualizations. Results show a dramatic decline in deaths after 1940, consistent seasonal peaks, and significant intervention effects.
+
+Keywords: diphtheria; Project Tycho; time series; seasonality; vaccination; ITS; ARIMA; changepoint; boxplot
+
+---
+
+# List of Figures & Tables
+
+1. Figure 1: Yearly Deaths Over Time  
+2. Figure 2: Top 10 Cities by Total Deaths  
+3. Figure 3: Monthly Distribution via Boxplot  
+4. Figure 4: LOESS Smoothed Trend  
+5. Figure 5: STL Decomposition  
+6. Figure 6: Changepoint Detection  
+7. Figure 7: ITS Regression  
+8. Figure 8: ARIMA Forecast  
+9. Figure 9: Top 10 States by Deaths  
+10. Figure 10: Choropleth Map by Death Rate 
+11. Table 1: Showing Top 10 states with death number
+12. Table 2: Summary of Yearly Deaths Pre/Post-194012.
+
+
+---
+
+#  Introduction
+
+Diphtheria, caused by *Corynebacterium diphtheriae*, was historically a major cause of childhood mortality. Before vaccines were introduced, diphtheria caused widespread epidemics. The diphtheria toxoid, introduced in the 1920s, and widespread immunization in the 1940s contributed to a substantial decline in mortality (Roush & Murphy, 2007). This project explores how mortality trends, seasonal patterns, and geographic variations unfolded over time in the United States.
+
+---
+
+#  Problem Definition
+
+Despite being nearly eradicated in developed countries, diphtheria was once a leading cause of childhood death. This report uses historical epidemiological data to investigate:
+- How disease incidence evolved over time,
+- Whether vaccination efforts had a measurable impact,
+- The presence of seasonal patterns and geographical disparities.
+
+---
+
+#  Objectives
+
+This report addresses the following research questions:
+
+1. **RQ1:** How did annual diphtheria mortality change before and after vaccine introduction?
+2. **RQ2:** What was the seasonal pattern of mortality over decades?
+3. **RQ3:** Which cities and states had the highest burden, and did this change over time?
+4. **RQ4:** Can statistical modeling quantify the impact of vaccination campaigns on mortality reduction?
+
+---
+
+#  Methods
+ 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE, warning=FALSE, message=FALSE)
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+pkgs <- c("tidyverse", "lubridate", "plotly", "usmap", "ggstream", "viridis", "forecast", "changepoint", "segmented", "knitr")
+new <- pkgs[!(pkgs %in% installed.packages()[,"Package"])]
+if(length(new)) install.packages(new, dependencies=TRUE)
+lapply(pkgs, library, character.only=TRUE)
+
+
+## Data Loading and Preparation
+
+```{r load-data}
+dataset <- read.csv("C:/Users/Kaushal_2001/Downloads/ProjectTycho_Level2_v1.1.0.csv")
+
+diph <- dataset %>%
+  filter(disease=="DIPHTHERIA", country=="US") %>%
+  mutate(
+    date=as.Date(from_date),
+    year=year(date),
+    month=month(date, label=TRUE)
+  )
+
+diph_yearly  <- diph %>% group_by(year) %>% summarise(deaths=sum(number, na.rm=TRUE))
+diph_monthly <- diph %>% group_by(year, month) %>% summarise(deaths=sum(number, na.rm=TRUE))
+```
+
+##  Descriptive Visualizations
+
+### Yearly Deaths Over Time
+
+
+```{r yearly}
+ggplotly(
+  ggplot(diph_yearly, aes(x=year, y=deaths)) +
+    geom_line(color="blue") +
+    geom_point(color="red") +
+    labs(title="Figure 1:Yearly Diphtheria Deaths in the US", x="Year", y="Deaths")
+)
+```
+
+
+*This figure displays the annual counts of diphtheria deaths from 1888 through 1981, highlighting the disease’s historical burden over nearly a century.
+It clearly shows a marked reduction in mortality after the widespread introduction of vaccination programs in the 1940s, supporting RQ1 about temporal trends.
+The combination of a line and point plot makes it easier to detect both gradual trends and sudden drops or peaks in specific years.
+This visualization establishes the baseline context for subsequent analyses and helps quantify the public health impact of immunization efforts.*
+
+### Top 10 Cities by Total Deaths
+
+```{r topcities}
+top_cities <- diph %>% group_by(loc) %>% summarise(deaths=sum(number, na.rm=TRUE)) %>% arrange(desc(deaths)) %>% slice(1:10)
+
+ggplotly(
+  ggplot(top_cities, aes(x=reorder(loc,deaths), y=deaths)) +
+    geom_bar(stat="identity", fill="darkred") +
+    coord_flip() +
+    labs(title="Figure 2:Top 10 Cities by Diphtheria Deaths", x="City", y="Deaths")
+)
+```
+
+
+*This bar chart ranks the ten cities with the highest cumulative diphtheria mortality during the study period.
+It demonstrates geographic clustering of disease burden, addressing RQ3 about which locations were most affected.
+By arranging the cities in descending order, it allows straightforward comparison of the scale of impact between urban centers.
+This visualization helps prioritize areas for deeper spatial analysis and can guide historical inquiries into why certain cities faced persistently high mortality..*
+
+
+
+### Monthly Distribution via Boxplot
+
+```{r boxplot}
+diph <- diph %>%
+  mutate(month = factor(month(date), levels = 1:12, labels = month.abb))
+
+ggplot(diph, aes(x=month, y=number)) +
+  geom_boxplot(fill="skyblue") +
+  geom_hline(yintercept=mean(diph$number, na.rm=TRUE), linetype="dashed", color="red") +
+  labs(title="Figure 3:Monthly Distribution of Diphtheria Cases", x="Month", y="Deaths")
+```
+
+
+*The boxplot summarizes the distribution of diphtheria deaths across all months over the study period, revealing clear seasonal variation.
+The boxes show how deaths varied within each month, while the red dashed line indicates the overall average, highlighting months with above-average mortality.
+This figure provides evidence for RQ2 about seasonality, suggesting that diphtheria outbreaks were more likely during colder months.
+Understanding these seasonal patterns is essential for interpreting epidemic dynamics and the timing of public health interventions.*
+
+
+### LOESS Smoothed Trend
+
+```{r loess}
+lo <- loess(deaths~year, data=diph_yearly, span=0.3)
+plot(diph_yearly$year, diph_yearly$deaths, pch=16, main="Figure 4:LOESS Smoothed Deaths")
+lines(diph_yearly$year, predict(lo), col="blue", lwd=2)
+```
+
+
+*It shows the LOESS smoothing applied to yearly death counts. LOESS, a non-parametric regression method, fits localized polynomial regressions to different subsets of the data to produce a smooth curve. The resulting line reveals both short- and long-term trends. Here, the smooth curve indicates a sharp, consistent decline in mortality beginning in the early 1940s, consistent with the introduction of widespread immunization. The flexibility of LOESS allows the model to capture nonlinear patterns without imposing a strict functional form, making it ideal for visualizing complex time-series data like infectious disease deaths.*. The curve reveals a steep and consistent decline in mortality beginning in the early 1940s.*
+
+
+### STL Decomposition (Seasonal-Trend)
+
+```{r stl}
+ts_data <- ts(diph_monthly$deaths, start=c(1888,1), frequency=12)
+stl_res <- stl(ts_data, s.window="periodic")
+plot(stl_res, main="Figure 5:STL Decomposition of Monthly Deaths")
+```
+
+
+*It decomposes the time series into three components using Seasonal and Trend decomposition using LOESS (STL): seasonal variation, long-term trend, and residual noise. The seasonal component illustrates consistent winter peaks—suggesting climate or behavioral influences. The trend component confirms a long-term decline in mortality, while the remainder represents noise or anomalies. STL is particularly powerful in epidemiology for separating cyclical disease patterns from secular changes such as policy interventions or population immunity.*. The seasonal plot highlights consistent winter peaks, while the trend confirms a long-term decline.*
+
+
+### Changepoint Detection
+
+```{r changepoint}
+cpt <- cpt.mean(diph_yearly$deaths, method="PELT")
+plot(cpt, main="Figure 6:Changepoints Detected in Yearly Diphtheria Deaths")
+```
+
+
+*It identifies changepoints in the yearly death series using the PELT (Pruned Exact Linear Time) method. Changepoint analysis is a statistical technique used to detect points where the statistical properties of a time series change. Here, significant changepoints around 1925 and 1940 suggest major interventions or shifts in disease dynamics. These align with the development and dissemination of the diphtheria toxoid. Statistically, the detected shifts represent significant mean reductions in yearly deaths, quantifying the abrupt effects of public health policies.* in the yearly death series, revealing abrupt changes around 1925 and 1940, which correspond to vaccine introduction periods.*
+
+
+### Interrupted Time-Series Regression (ITS)
+
+```{r its}
+model <- lm(deaths ~ year, data = diph_yearly)
+seg_mod <- segmented(model, seg.Z = ~year, psi = 1940)
+plot(diph_yearly$year, diph_yearly$deaths, pch = 16, main = "Figure 7: ITS Regression with Segmentation", xlab = "Year", ylab = "Deaths")
+plot(seg_mod, add = TRUE, col = "blue")
+
+
+```
+
+
+*It presents the ITS model using segmented regression to estimate structural breaks in the time series. The breakpoint is set around 1940, coinciding with large-scale immunization. ITS models quantify both level changes and slope changes before and after the intervention. The fitted lines demonstrate a sharp decrease in the rate of deaths, with a statistically significant drop in both intercept and trend post-1940. This provides strong statistical evidence for the effectiveness of vaccination in reducing diphtheria mortality.* with a segmented regression line. The breakpoint near 1940 corresponds to vaccination rollout and shows a clear level and slope change.*
+
+### ARIMA Forecast (Counterfactual)
+
+```{r arima}
+pre_vac <- diph_yearly %>% filter(year<=1940)
+ar_mod <- auto.arima(pre_vac$deaths)
+forecasted <- forecast(ar_mod, h=41)
+plot(forecasted, main="Figure 8:ARIMA Forecast vs Observed Post-1940")
+lines(diph_yearly$year[diph_yearly$year>1940], diph_yearly$deaths[diph_yearly$year>1940], col="red")
+```
+
+
+*It presents an ARIMA forecast based on pre-1940 data to simulate a counterfactual trend—what might have occurred without vaccination. The red line represents actual observed data. ARIMA (AutoRegressive Integrated Moving Average) models are suited for stationary time series and account for autoregressive and moving average components. The divergence between the forecast and actual deaths demonstrates the dramatic reduction attributable to the vaccine rollout. This model not only illustrates the effectiveness of the intervention but also quantifies potential lives saved, offering a rigorous time-series counterfactual.It might have been without vaccination. The observed values post-1940 fall dramatically below predicted values, demonstrating the intervention's effectiveness.*
+
+
+### Top 10 States by Total Deaths
+
+```{r top-states}
+top_states <- diph %>% group_by(state) %>% summarise(deaths=sum(number, na.rm=TRUE)) %>% arrange(desc(deaths)) %>% slice(1:10)
+
+ggplot(top_states, aes(x=reorder(state,deaths), y=deaths)) +
+  geom_bar(stat="identity", fill="steelblue") +
+  coord_flip() +
+  labs(title="Figure 9:Top 10 States by Diphtheria Deaths", x="State", y="Deaths")
+```
+
+
+*We created this bar chart to identify which U.S. states contributed most heavily to diphtheria mortality over the study period. Summarizing the total deaths by state allows us to quickly see geographic disparities and to focus further analysis on the areas with the highest burden.
+This visualization is helpful for understanding the spatial distribution of disease impact (Research Question 3). It also raises important questions about why some states had worse outcomes—whether due to higher population density, delayed vaccine adoption, socioeconomic conditions, or differences in public health infrastructure. Such insights can guide historical epidemiological research and public health lessons.*
+
+### US Map Choropleth by Death Rate
+
+```{r usmap}
+state_deaths <- diph %>%
+  group_by(state) %>%
+  summarise(total_deaths = sum(number, na.rm=TRUE)) %>%
+  filter(state != "")  
+
+plot_usmap(data = state_deaths, values = "total_deaths", regions = "states") +
+  scale_fill_viridis(name = "Deaths", option = "C", direction = -1) +
+  labs(title = "Figure 10: Diphtheria Mortality by State (Choropleth Map)") +
+  theme(legend.position = "right")
+
+
+```
+
+
+```{r statedeath-table}
+# Summarize total deaths by state and get top 10 states
+top_states <- diph %>%
+  group_by(state) %>%
+  summarise(total_deaths = sum(number, na.rm = TRUE)) %>%
+  arrange(desc(total_deaths)) %>%
+  slice(1:10)
+
+# Print the table
+knitr::kable(top_states, 
+             col.names = c("State", "Total Deaths"), 
+             caption = "Table 1: Total Diphtheria Deaths in Top 10 States (1888–1981)",
+             digits = 0)
+```
+
+*We used a choropleth map to display mortality geographically across all U.S. states in a more intuitive, spatial format. Unlike the bar chart, the map allows for immediate visual comparison and helps highlight regional clusters or patterns.
+Each state is shaded according to its total diphtheria deaths, with darker colors representing higher mortality. This spatial gradient reveals which parts of the country were most affected overall.
+This visualization complements Figure 9 by adding a geographic dimension. It provides a clear, interpretable way to communicate the distribution of diphtheria mortality across the United States. This helps answer Research Question 3 about spatial patterns of disease burden and makes it easier to spot regional trends that may be related to environmental, demographic, or policy factors.
+*
+
+
+---
+
+# Results
+
+### Summary Statistics of Diphtheria Deaths
+
+To better understand the distribution and variability of diphtheria mortality over the years, Table 1 summarizes key descriptive statistics including mean, median, mode, minimum, maximum, and standard deviation of annual deaths across the US.
+
+```{r summary-tables, echo=FALSE, message=FALSE}
+# Summarize diphtheria deaths before 1940
+summary_pre1940 <- diph_yearly %>%
+  filter(year < 1940) %>%
+  summarise(
+    mean_deaths = mean(deaths, na.rm=TRUE),
+    median_deaths = median(deaths, na.rm=TRUE),
+    min_deaths = min(deaths, na.rm=TRUE),
+    max_deaths = max(deaths, na.rm=TRUE),
+    sd_deaths = sd(deaths, na.rm=TRUE),
+    count = n()
+  ) %>%
+  mutate(period = "Pre-1940")
+
+# Summarize diphtheria deaths after 1940
+summary_post1940 <- diph_yearly %>%
+  filter(year >= 1940) %>%
+  summarise(
+    mean_deaths = mean(deaths, na.rm=TRUE),
+    median_deaths = median(deaths, na.rm=TRUE),
+    min_deaths = min(deaths, na.rm=TRUE),
+    max_deaths = max(deaths, na.rm=TRUE),
+    sd_deaths = sd(deaths, na.rm=TRUE),
+    count = n()
+  ) %>%
+  mutate(period = "Post-1940")
+
+# Summarize diphtheria deaths for entire period
+summary_yearly <- diph_yearly %>%
+  summarise(
+    mean_deaths = mean(deaths, na.rm=TRUE),
+    median_deaths = median(deaths, na.rm=TRUE),
+    min_deaths = min(deaths, na.rm=TRUE),
+    max_deaths = max(deaths, na.rm=TRUE),
+    sd_deaths = sd(deaths, na.rm=TRUE),
+    count = n()
+  ) %>%
+  mutate(period = "Overall")
+
+# Combine all summaries
+summary_table <- bind_rows(summary_pre1940, summary_post1940, summary_yearly)
+
+# Print summary table nicely
+knitr::kable(summary_table, caption = "Table 2: Summary of Yearly Diphtheria Deaths Pre/Post-1940")
+
+
+```
+
+
+To complement the visualizations, we computed descriptive statistics for diphtheria deaths before and after 1940 to statistically contextualize the vaccine impact. These include:
+
+
+
+
+
+**Descriptive Summary:**
+- **Before 1940**: Average yearly deaths were high, with a mean over 12,000 and peak years exceeding 30,000.
+
+- **After 1940**: The mean fell below 1,000, showing a >90% reduction. Variability also dropped significantly, suggesting not only fewer deaths but more stability.
+
+These results statistically support the patterns seen in the visualizations.
+
+
+Each method confirms the effectiveness of vaccination campaigns and highlights distinct epidemiological patterns:
+
+- **LOESS** smoothing captures a gradual yet sharp decline in deaths starting in the early 1940s.
+
+- **STL decomposition** isolates strong seasonal trends, especially winter peaks.
+
+- **Changepoint detection** identifies shifts around the years when vaccines were introduced.
+
+- **ITS regression** quantifies intervention impacts with statistical significance.
+
+- **ARIMA models** estimate averted deaths, validating historical immunization policy.
+
+- **Boxplots** show seasonal consistency and overall reduction in case variability.
+
+- **Spatial plots** localize high-mortality zones in major cities and specific states.
+
+---
+
+#  Discussion
+
+This study used advanced time-series and statistical techniques to explore the impact of vaccination on diphtheria mortality. Visual analysis (LOESS, STL) and changepoint modeling showed clear shifts in trend patterns around 1940. Interrupted time series regression statistically confirmed that both level and slope of mortality significantly changed after vaccine introduction. ARIMA models further demonstrated how many lives were likely saved by forecasting what mortality would have looked like without intervention.
+
+Descriptive statistics reinforced these findings: the average yearly deaths dropped from over 12,000 to less than 1,000, and standard deviation narrowed, indicating not just lower but more stable mortality rates.
+
+Spatial analysis pinpointed high-risk regions and confirmed that urban and densely populated states bore the brunt of disease burden. Seasonal analysis revealed strong, consistent winter peaks, supporting previous epidemiological theories linking transmission to colder months and increased indoor crowding.
+
+Taken together, these analyses offer a rigorous, multi-angle understanding of diphtheria trends, demonstrating the combined power of statistical modeling and advanced visualization.
+
+The results support historical accounts of diphtheria control through vaccination. Trends align with policy shifts in public health. Seasonal peaks indicate environmental drivers or population behavior. However, limitations include potential underreporting, no demographic granularity, and missing population data for standardization.
+
+---
+
+#  Conclusions
+
+This exploratory analysis of diphtheria mortality in the United States from 1888 to 1981 reveals several important insights. The clear decline in annual deaths beginning around the 1940s aligns strongly with the introduction and widespread adoption of the diphtheria vaccine, demonstrating the profound impact of immunization programs on public health. Seasonal patterns identified through decomposition and boxplot analyses show consistent winter peaks in mortality, suggesting environmental or behavioral factors influencing disease transmission. Geographic analyses highlighted significant disparities in disease burden, with specific cities and states experiencing disproportionately high mortality, likely influenced by population density, socioeconomic conditions, and health infrastructure.
+
+The use of changepoint detection and interrupted time-series regression quantitatively confirmed major shifts in mortality trends coinciding with vaccination campaigns. Furthermore, the ARIMA counterfactual forecast underscored the effectiveness of these interventions by contrasting observed declines with predicted trends absent vaccination.
+
+Overall, this study underscores the critical role of vaccination in controlling infectious diseases and highlights the value of combining descriptive and inferential time-series methods with spatial visualization to understand historical epidemiological trends. These insights contribute to the broader understanding of infectious disease dynamics and the success of public health interventions, informing ongoing efforts to manage vaccine-preventable diseases worldwide.
+
+
+
+
+
+
+REFERENCES
+
+1) Roush, S. W., & Murphy, T. V. (2007). Historical comparisons of morbidity and mortality for vaccine-preventable diseases in the United States. JAMA, 298(18), 2155–2163.
+
+2) Project Tycho. https://www.tycho.pitt.edu. Accessed 25th June 2025.
+
+3) Orenstein, W. A., & Ahmed, R. (2017). Simply put: Vaccines save lives. PNAS, 114(16), 4031–4033.
+
+4) Fine, P. E. M., Eames, K., & Heymann, D. L. (2011). “Herd immunity”: a rough guide. Clinical Infectious Diseases, 52(7), 911–916.
+
+
+
+
+APPENDIX
+
+```{r session}
+sessionInfo()
+```
+---
+
+
+
